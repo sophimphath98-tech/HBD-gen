@@ -1,0 +1,106 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Catch-all safety net: Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened safety helper primitives
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    
+    function isSignedIn() { 
+      return request.auth != null; 
+    }
+    
+    function isVerifiedUser() { 
+      return isSignedIn() && (request.auth.token.email_verified == true); 
+    }
+
+    // validator for BirthdayCard payloads
+    function isValidBirthdayCard(data) {
+      return data.keys().hasAll(['id', 'title', 'description', 'presetColor', 'createdAt', 'authorId', 'authorName'])
+        && data.keys().size() <= 9
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.description is string && data.description.size() > 0 && data.description.size() <= 8000
+        && data.presetColor is string && data.presetColor.size() <= 128
+        && data.authorId is string && data.authorId.size() <= 128
+        && data.authorName is string && data.authorName.size() <= 256
+        && (!data.keys().hasAll(['projectId']) || (data.projectId is string && data.projectId.size() <= 128))
+        && (!data.keys().hasAll(['imageUrl']) || (data.imageUrl is string && data.imageUrl.size() <= 400000));
+    }
+
+    // validator for global configuration settings payloads
+    function isValidSetting(data) {
+      return data.keys().hasAll(['name', 'updatedAt', 'updatedBy'])
+        && data.keys().size() <= 15
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.updatedBy is string && data.updatedBy.size() <= 128
+        && (!data.keys().hasAll(['fireworkPreset']) || (data.fireworkPreset is string && data.fireworkPreset.size() <= 100))
+        && (!data.keys().hasAll(['confettiPreset']) || (data.confettiPreset is string && data.confettiPreset.size() <= 100))
+        && (!data.keys().hasAll(['musicType']) || (data.musicType is string && data.musicType.size() <= 100))
+        && (!data.keys().hasAll(['musicFileName']) || (data.musicFileName is string && data.musicFileName.size() <= 256))
+        && (!data.keys().hasAll(['musicDuration']) || (data.musicDuration is number))
+        && (!data.keys().hasAll(['musicBase64']) || (data.musicBase64 is string && data.musicBase64.size() <= 1000000))
+        && (!data.keys().hasAll(['siteTitle']) || (data.siteTitle is string && data.siteTitle.size() <= 128))
+        && (!data.keys().hasAll(['orbitTitle']) || (data.orbitTitle is string && data.orbitTitle.size() <= 128))
+        && (!data.keys().hasAll(['orbitDescription']) || (data.orbitDescription is string && data.orbitDescription.size() <= 1000))
+        && (!data.keys().hasAll(['vercelDeployUrl']) || (data.vercelDeployUrl is string && data.vercelDeployUrl.size() <= 1024))
+        && (!data.keys().hasAll(['vercelProjectName']) || (data.vercelProjectName is string && data.vercelProjectName.size() <= 256));
+    }
+
+    // Primary memory card matching matches block
+    match /birthday_content/{cardId} {
+      allow read: if true;
+      allow list: if true; // anyone can fetch and see the beautiful memories!
+      
+      allow create: if isVerifiedUser()
+        && isValidId(cardId)
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && isValidBirthdayCard(request.resource.data);
+
+      allow update: if isVerifiedUser()
+        && isValidId(cardId)
+        && resource.data.authorId == request.auth.uid
+        && request.resource.data.authorId == resource.data.authorId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && isValidBirthdayCard(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'presetColor', 'imageUrl']);
+        
+      allow delete: if isSignedIn()
+        && isValidId(cardId)
+        && (resource.data.authorId == request.auth.uid 
+            || (resource.data.keys().hasAll(['projectId']) 
+                && exists(/databases/$(database)/documents/settings/$(resource.data.projectId))
+                && get(/databases/$(database)/documents/settings/$(resource.data.projectId)).data.updatedBy == request.auth.uid));
+    }
+
+    // Global configurations (e.g., config/celebrant)
+    match /settings/{settingId} {
+      allow read, get: if true; // Everyone can find out who the celebrant is
+      allow list: if isSignedIn(); // Logged in users can query and retrieve their list of celebrations!
+      
+      allow create, write: if isVerifiedUser()
+        && isValidId(settingId)
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && isValidSetting(request.resource.data);
+
+      allow update: if isVerifiedUser()
+        && isValidId(settingId)
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && isValidSetting(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'updatedAt', 'updatedBy', 'fireworkPreset', 'confettiPreset', 'musicType', 'musicFileName', 'musicDuration', 'musicBase64', 'siteTitle', 'orbitTitle', 'orbitDescription', 'vercelDeployUrl', 'vercelProjectName']);
+
+      allow delete: if isSignedIn()
+        && isValidId(settingId)
+        && resource.data.updatedBy == request.auth.uid;
+    }
+  }
+}

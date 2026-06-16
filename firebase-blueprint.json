@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "BirthdayCard": {
+      "title": "Birthdaycard",
+      "description": "A customized memory card left for the birthday celebrant.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique card identifier."
+        },
+        "projectId": {
+          "type": "string",
+          "description": "Optional reference linking this card to a specific celebration project."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the memory card."
+        },
+        "description": {
+          "type": "string",
+          "description": "Body narrative or birthday wish."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Optional base64 or public image url."
+        },
+        "presetColor": {
+          "type": "string",
+          "description": "The custom aesthetic layout color preset identifier."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp."
+        },
+        "authorId": {
+          "type": "string",
+          "description": "UID of the user who posted this card."
+        },
+        "authorName": {
+          "type": "string",
+          "description": "Full display name of the card creater."
+        },
+        "authorEmail": {
+          "type": "string",
+          "description": "Email address of the card creator."
+        }
+      },
+      "required": ["id", "title", "description", "presetColor", "createdAt", "authorId", "authorName"]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Global customization setting such as the current celebrated name.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the birthday celebrant."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last modified timestamp."
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "UID of the user who changed this setting."
+        },
+        "siteTitle": {
+          "type": "string",
+          "description": "Optional site wide header title."
+        },
+        "orbitTitle": {
+          "type": "string",
+          "description": "Optional memory orbit block title."
+        },
+        "orbitDescription": {
+          "type": "string",
+          "description": "Optional memory orbit block description details."
+        },
+        "vercelDeployUrl": {
+          "type": "string",
+          "description": "Optional direct link to the deployed Vercel live celebration page."
+        },
+        "vercelProjectName": {
+          "type": "string",
+          "description": "Optional unique project slug associated with Vercel deployment."
+        }
+      },
+      "required": ["name", "updatedAt", "updatedBy"]
+    }
+  },
+  "firestore": {
+    "/birthday_content/{cardId}": {
+      "schema": "BirthdayCard",
+      "description": "Collection storing all memory wishes left by users."
+    },
+    "/settings/{settingId}": {
+      "schema": "Setting",
+      "description": "Site-wide configuration variables."
+    }
+  }
+}
